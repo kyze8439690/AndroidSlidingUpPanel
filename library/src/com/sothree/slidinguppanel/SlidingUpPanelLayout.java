@@ -3,6 +3,7 @@ package com.sothree.slidinguppanel;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
@@ -22,7 +23,7 @@ import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityEvent;
 
 public class SlidingUpPanelLayout extends ViewGroup {
-    
+
     private static final String TAG = SlidingUpPanelLayout.class.getSimpleName();
 
     /**
@@ -107,11 +108,11 @@ public class SlidingUpPanelLayout extends ViewGroup {
      * Flag indicating that sliding feature is enabled\disabled
      */
     private boolean mIsSlidingEnabled;
-    
+
     /**
      * Flag indicating if a drag view can have its own touch events.  If set
      * to true, a drag view can scroll horizontally and have its own click listener.
-     * 
+     *
      * Default is set to false.
      */
     private boolean mIsUsingDragViewTouchEvents;
@@ -210,7 +211,7 @@ public class SlidingUpPanelLayout extends ViewGroup {
         mIsSlidingEnabled = true;
 
         setCoveredFadeColor(DEFAULT_FADE_COLOR);
-        
+
         ViewConfiguration vc = ViewConfiguration.get(context);
         mScrollTouchSlop = vc.getScaledTouchSlop();
     }
@@ -373,6 +374,12 @@ public class SlidingUpPanelLayout extends ViewGroup {
         mFirstLayout = true;
     }
 
+    private boolean mPanelOverlayed = false;
+
+    public void setPanelOverlayable(boolean a){
+        mPanelOverlayed = a;
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         final int widthMode = MeasureSpec.getMode(widthMeasureSpec);
@@ -417,7 +424,7 @@ public class SlidingUpPanelLayout extends ViewGroup {
                 lp.dimWhenOffset = true;
                 mSlideableView = child;
                 mCanSlide = true;
-            } else {
+            } else if(!mPanelOverlayed) {
                 height -= panelHeight;
             }
 
@@ -445,6 +452,12 @@ public class SlidingUpPanelLayout extends ViewGroup {
         setMeasuredDimension(widthSize, heightSize);
     }
 
+    private boolean mIsPanelTransparent = false;
+
+    public void setPanelTransparent(boolean a){
+        mIsPanelTransparent = a;
+    }
+
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         final int paddingLeft = getPaddingLeft();
@@ -460,6 +473,10 @@ public class SlidingUpPanelLayout extends ViewGroup {
 
         for (int i = 0; i < childCount; i++) {
             final View child = getChildAt(i);
+
+            if(i == 1 && mIsPanelTransparent){
+                child.setBackgroundColor(Color.TRANSPARENT);
+            }
 
             if (child.getVisibility() == GONE) {
                 continue;
@@ -508,11 +525,11 @@ public class SlidingUpPanelLayout extends ViewGroup {
     public void setSlidingEnabled(boolean enabled) {
         mIsSlidingEnabled = enabled;
     }
-    
+
     /**
      * Set if the drag view can have its own touch events.  If set
      * to true, a drag view can scroll horizontally and have its own click listener.
-     * 
+     *
      * Default is set to false.
      */
     public void setEnableDragViewTouchEvents(boolean enabled) {
@@ -565,7 +582,7 @@ public class SlidingUpPanelLayout extends ViewGroup {
                 mInitialMotionX = x;
                 mInitialMotionY = y;
                 mDragViewHit = isDragViewHit((int) x, (int) y);
-                
+
                 if (mDragViewHit && !mIsUsingDragViewTouchEvents) {
                     interceptTap = true;
                 }
@@ -576,7 +593,7 @@ public class SlidingUpPanelLayout extends ViewGroup {
                 final float adx = Math.abs(x - mInitialMotionX);
                 final float ady = Math.abs(y - mInitialMotionY);
                 final int dragSlop = mDragHelper.getTouchSlop();
-                
+
                 // Handle any horizontal scrolling on the drag view.
                 if (mIsUsingDragViewTouchEvents) {
                     if (adx > mScrollTouchSlop && ady < mScrollTouchSlop) {
@@ -588,7 +605,7 @@ public class SlidingUpPanelLayout extends ViewGroup {
                         interceptTap = mDragViewHit;
                     }
                 }
-                
+
                 if (ady > dragSlop && adx > ady) {
                     mDragHelper.cancel();
                     mIsUnableToDrag = true;
@@ -770,7 +787,9 @@ public class SlidingUpPanelLayout extends ViewGroup {
             // Clip against the slider; no sense drawing what will immediately be covered.
             canvas.getClipBounds(mTmpRect);
             mTmpRect.bottom = Math.min(mTmpRect.bottom, mSlideableView.getTop());
-            canvas.clipRect(mTmpRect);
+            if(!mIsPanelTransparent){
+                canvas.clipRect(mTmpRect);
+            }
             if (mSlideOffset < 1) {
                 drawScrim = true;
             }
@@ -974,7 +993,7 @@ public class SlidingUpPanelLayout extends ViewGroup {
                 if (yvel > 0 || (yvel == 0 && mSlideOffset >= (1f+anchorOffset)/2)) {
                     top += mSlideRange;
                 } else if (yvel == 0 && mSlideOffset < (1f+anchorOffset)/2
-                                    && mSlideOffset >= anchorOffset/2) {
+                        && mSlideOffset >= anchorOffset/2) {
                     top += mSlideRange * mAnchorPoint;
                 }
 
@@ -1005,7 +1024,7 @@ public class SlidingUpPanelLayout extends ViewGroup {
 
     public static class LayoutParams extends ViewGroup.MarginLayoutParams {
         private static final int[] ATTRS = new int[] {
-            android.R.attr.layout_weight
+                android.R.attr.layout_weight
         };
 
         /**
@@ -1070,15 +1089,15 @@ public class SlidingUpPanelLayout extends ViewGroup {
 
         public static final Parcelable.Creator<SavedState> CREATOR =
                 new Parcelable.Creator<SavedState>() {
-            @Override
-            public SavedState createFromParcel(Parcel in) {
-                return new SavedState(in);
-            }
+                    @Override
+                    public SavedState createFromParcel(Parcel in) {
+                        return new SavedState(in);
+                    }
 
-            @Override
-            public SavedState[] newArray(int size) {
-                return new SavedState[size];
-            }
-        };
+                    @Override
+                    public SavedState[] newArray(int size) {
+                        return new SavedState[size];
+                    }
+                };
     }
 }
